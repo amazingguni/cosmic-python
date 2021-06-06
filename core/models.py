@@ -15,7 +15,7 @@ class Batch:
         self.reference = ref
         self.sku = sku
         self.eta = eta
-        self.__purchased_quantity = quantity
+        self.purchased_quantity = quantity
         self.__allocations = set()
 
     def allocate(self, line: OrderLine):
@@ -38,7 +38,7 @@ class Batch:
 
     @property
     def available_quantity(self) -> int:
-        return self.__purchased_quantity - self.allocated_quantity
+        return self.purchased_quantity - self.allocated_quantity
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Batch):
