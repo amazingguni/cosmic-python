@@ -1,4 +1,4 @@
-from core.models import OrderLine
+from model import OrderLine
 
 
 def test_orderline_mapper_and_load_lines(session):

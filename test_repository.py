@@ -1,5 +1,5 @@
-from core.models import Batch, OrderLine
-from core.repository import SqlAlchemyRepository
+from model import Batch, OrderLine
+from repository import SqlAlchemyRepository
 
 
 def test_repository_can_save_a_batch(session):
