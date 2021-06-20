@@ -34,7 +34,6 @@ class Batch:
 
     @property
     def allocated_quantity(self) -> int:
-        print(self._allocations)
         return sum(line.quantity for line in self._allocations)
 
     @property
