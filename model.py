@@ -16,12 +16,12 @@ class Batch:
         self.sku = sku
         self.eta = eta
         self.purchased_quantity = quantity
-        self.__allocations = set()
+        self._allocations = set()  # type: Set[OrderLine]
 
     def allocate(self, line: OrderLine):
         if not self.can_allocate(line):
             return
-        self.__allocations.add(line)
+        self._allocations.add(line)
 
     def can_allocate(self, line: OrderLine) -> bool:
         if self.sku != line.sku:
@@ -29,12 +29,13 @@ class Batch:
         return self.available_quantity >= line.quantity
 
     def deallocate(self, line: OrderLine):
-        if line in self.__allocations:
-            self.__allocations.remove(line)
+        if line in self._allocations:
+            self._allocations.remove(line)
 
     @property
     def allocated_quantity(self) -> int:
-        return sum(line.quantity for line in self.__allocations)
+        print(self._allocations)
+        return sum(line.quantity for line in self._allocations)
 
     @property
     def available_quantity(self) -> int:

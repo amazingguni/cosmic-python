@@ -61,6 +61,6 @@ def test_repository_can_retrieve_a_batch_with_allocations(session):
     assert retrieved == expected
     assert retrieved.sku == expected.sku
     assert retrieved.purchased_quantity == expected.purchased_quantity
-    assert retrieved.__allocations == {
+    assert retrieved._allocations == {
         OrderLine('order1', 'GENERIC-SOFA', 12)
     }

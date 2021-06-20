@@ -38,7 +38,7 @@ def start_mappers():
         model.Batch,
         batches,
         properties={
-            "__allocations": relationship(
+            "_allocations": relationship(
                 lines_mapper, secondary=allocations, collection_class=set,
             )
         },

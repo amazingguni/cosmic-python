@@ -19,7 +19,6 @@ def allocate_endpoint():
     batches = repository.SqlAlchemyRepository(session).list()
     line = model.OrderLine(
         request.json['order_id'], request.json['sku'], request.json['qty'])
-
     batchref = model.allocate(line, batches)
 
     return {'batchref': batchref}, 201
