@@ -5,7 +5,7 @@ from http import HTTPStatus
 import requests
 
 
-from src.allocation import config
+from allocation import config
 
 
 def random_suffix():

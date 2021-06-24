@@ -1,9 +1,8 @@
 import pytest
-from datetime import date, timedelta
 
-from src.allocation.adapters import repository
-from src.allocation.domain.model import Batch, OrderLine
-from src.allocation.service_layer import services
+from allocation.adapters import repository
+from allocation.domain.model import Batch
+from allocation.service_layer import services
 
 
 class FakeRepository(repository.AbstractRepository):

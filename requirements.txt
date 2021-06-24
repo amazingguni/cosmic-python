@@ -1,3 +1,4 @@
+-e git+git@github.com:amazingguni/cosmic-python.git@cb4671a19e65a046b6d224ba939ecb4b1d92fd06#egg=allocation&subdirectory=src
 astroid==2.5.6
 attrs==21.2.0
 autopep8==1.5.7
