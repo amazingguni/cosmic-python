@@ -38,6 +38,10 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.batches = repository.SqlAlchemyRepository(self.session)
         return super().__enter__()
 
+    def __exit__(self, *args):
+        super().__exit__(*args)
+        self.session.close()
+
     def commit(self):
         self.session.commit()
 
