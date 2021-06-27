@@ -1,4 +1,5 @@
 import abc
+from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
@@ -8,7 +9,7 @@ from allocation.adapters import repository
 
 
 class AbstractUnitOfWork(abc.ABC):
-    batches: repository.AbstractRepository
+    products: repository.AbstractProductRepository
 
     def __enter__(self):
         return self
@@ -26,7 +27,10 @@ class AbstractUnitOfWork(abc.ABC):
 
 
 DEFAULT_SESSION_FACTORY = sessionmaker(
-    bind=create_engine(config.get_postgres_uri()))
+    bind=create_engine(
+        config.get_postgres_uri(),
+        isolation_level='REPEATABLE READ'
+    ))
 
 
 class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
@@ -35,7 +39,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     def __enter__(self):
         self.session = self.session_factory()  # type: Session
-        self.batches = repository.SqlAlchemyRepository(self.session)
+        self.products = repository.SqlAlchemyProductRepository(self.session)
         return super().__enter__()
 
     def __exit__(self, *args):

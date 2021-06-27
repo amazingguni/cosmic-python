@@ -1,33 +1,28 @@
 import pytest
 
 from allocation.adapters import repository
-from allocation.domain.model import Batch
+from allocation.domain.model import Product
 from allocation.service_layer import services, unit_of_work
 
 
-class FakeRepository(repository.AbstractRepository):
-    def __init__(self, batches: list[Batch]):
-        self._batches = set(batches)
+class FakeRepository(repository.AbstractProductRepository):
+    def __init__(self, products: list[Product]):
+        self._products = set(products)
 
-    def add(self, batch: Batch):
-        self._batches.add(batch)
+    def add(self, product: Product):
+        self._products.add(product)
 
-    def get(self, reference):
-        return next(b for b in self._batches if b.reference == reference)
-
-    def list(self):
-        return list(self._batches)
-
-    @staticmethod
-    def for_batch(ref, sku, qty, eta=None):
-        return FakeRepository([
-            Batch(ref, sku, qty, eta),
-        ])
+    def get(self, sku):
+        for p in self._products:
+            if p.sku == sku:
+                return p
+        return None
+        # return next(p for p in self._products if p.sku == sku)
 
 
 class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
     def __init__(self):
-        self.batches = FakeRepository([])
+        self.products = FakeRepository([])
         self.committed = False
 
     def commit(self):
@@ -63,8 +58,8 @@ def test_commits():
     assert uow.committed is True
 
 
-def test_add_batch():
+def test_add_batch_for_new_product():
     uow = FakeUnitOfWork()
     services.add_batch('b1', 'CRUNCHY-ARMCHAIR', 100, None, uow)
-    assert uow.batches.get('b1') is not None
+    assert uow.products.get('CRUNCHY-ARMCHAIR') is not None
     assert uow.committed
