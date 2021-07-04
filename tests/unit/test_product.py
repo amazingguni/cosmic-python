@@ -1,8 +1,7 @@
 from datetime import date, timedelta
-import pytest
 
-from allocation.domain.model import Product, Batch, OrderLine, OutOfStock
-
+from allocation.domain.model import Product, Batch, OrderLine
+from allocation.domain import events
 
 today = date.today()
 tomorrow = today + timedelta(days=1)
@@ -55,8 +54,9 @@ def test_raises_out_of_stock_exception_if_cannot_allocate():
     product = Product(sku='SMALL-FORK', batches=[batch])
     product.allocate(OrderLine('order1', 'SMALL-FORK', 10))
 
-    with pytest.raises(OutOfStock, match='SMALL-FORK'):
-        product.allocate(OrderLine('order2', 'SMALL-FORK', 1))
+    allocation = product.allocate(OrderLine('order2', 'SMALL-FORK', 1))
+    assert product.events[-1] == events.OutOfStock(sku="SMALL-FORK")
+    assert allocation is None
 
 
 def test_increments_version_number():

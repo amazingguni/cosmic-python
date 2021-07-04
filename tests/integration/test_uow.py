@@ -58,7 +58,7 @@ def test_rolls_back_uncommitted_work_by_default(session_factory):
     assert rows == []
 
 
-def test_test_rolls_back_on_error(session_factory):
+def test_rolls_back_on_error(session_factory):
     class MyException(Exception):
         pass
     uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
@@ -84,7 +84,6 @@ def try_to_allocate(orderid, sku, exceptions):
         exceptions.append(e)
 
 
-# @pytest.mark.skip("do this for an advanced challenge")
 def test_concurrent_updates_to_version_are_not_allowed(postgres_session_factory):
     sku, batch = random_sku(), random_batchref()
     session = postgres_session_factory()
