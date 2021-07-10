@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from allocation import config
-from allocation.domain import events
+from allocation.domain import events, commands
 from allocation.adapters import orm
 from allocation.service_layer import unit_of_work, messagebus, handlers
 
@@ -18,9 +18,10 @@ app = Flask(__name__)
 @app.route('/allocate', methods=['POST'])
 def allocate_endpoint():
     try:
-        event = events.AllocationRequired(
+        command = commands.Allocate(
             request.json['order_id'], request.json['sku'], request.json['quantity'])
-        results = messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
+        results = messagebus.handle(
+            command, unit_of_work.SqlAlchemyUnitOfWork())
         batchref = results.pop(0)
     except handlers.InvalidSku as e:
         return {'message': str(e)}, HTTPStatus.BAD_REQUEST
@@ -32,10 +33,10 @@ def add_batch():
     eta = request.json['eta']
     if eta is not None:
         eta = datetime.fromisoformat(eta).date()
-    event = events.BatchCreated(
+    command = commands.CreateBatch(
         request.json['reference'],
         request.json['sku'],
         request.json['quantity'],
         eta)
-    messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
+    messagebus.handle(command, unit_of_work.SqlAlchemyUnitOfWork())
     return 'OK', HTTPStatus.CREATED
