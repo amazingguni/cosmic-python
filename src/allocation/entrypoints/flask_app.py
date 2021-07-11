@@ -1,13 +1,15 @@
 from datetime import datetime
 from http import HTTPStatus
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from allocation import views
 from allocation import config
-from allocation.domain import events, commands
+from allocation.domain import commands
 from allocation.adapters import orm
-from allocation.service_layer import unit_of_work, messagebus, handlers
+from allocation.service_layer import unit_of_work, messagebus
+from allocation.service_layer.handlers import InvalidSku
 
 
 orm.start_mappers()
@@ -20,12 +22,11 @@ def allocate_endpoint():
     try:
         command = commands.Allocate(
             request.json['order_id'], request.json['sku'], request.json['quantity'])
-        results = messagebus.handle(
+        messagebus.handle(
             command, unit_of_work.SqlAlchemyUnitOfWork())
-        batchref = results.pop(0)
-    except handlers.InvalidSku as e:
+    except InvalidSku as e:
         return {'message': str(e)}, HTTPStatus.BAD_REQUEST
-    return {'batchref': batchref}, 201
+    return 'OK', HTTPStatus.ACCEPTED
 
 
 @app.route('/add-batch', methods=['POST'])
@@ -40,3 +41,12 @@ def add_batch():
         eta)
     messagebus.handle(command, unit_of_work.SqlAlchemyUnitOfWork())
     return 'OK', HTTPStatus.CREATED
+
+
+@app.route('/allocations/<order_id>', methods=['GET'])
+def allocations_view_endpoint(order_id):
+    uow = unit_of_work.SqlAlchemyUnitOfWork()
+    result = views.allocations(order_id, uow)
+    if not result:
+        return 'not found', HTTPStatus.NOT_FOUND
+    return jsonify(result), HTTPStatus.OK
