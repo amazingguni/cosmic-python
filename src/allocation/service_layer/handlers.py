@@ -1,6 +1,7 @@
-from allocation.adapters import email
+from allocation.adapters import email, redis_eventpublisher
 from allocation.domain import model, events, commands
 from allocation.domain.model import OrderLine, Batch
+from allocation.service_layer import unit_of_work
 from allocation.service_layer.unit_of_work import AbstractUnitOfWork
 
 
@@ -46,9 +47,17 @@ def send_out_of_stock_notification(event: events.OutOfStock,
 def change_batch_quantity(
         command: commands.ChangeBatchQuantity,
         uow: AbstractUnitOfWork):
+    print('handlers.change_batch_quantity', command)
     with uow:
         product = uow.products.get_by_batch_reference(
-            batch_reference=command.reference)
+            batch_reference=command.batch_reference)
         product.change_batch_quantity(
-            reference=command.reference, quantity=command.quantity)
+            reference=command.batch_reference, quantity=command.quantity)
         uow.commit()
+
+
+def publish_allocated_event(
+    event: events.Allocated,
+    uow: unit_of_work.AbstractUnitOfWork,
+):
+    redis_eventpublisher.publish('line_allocated', event)

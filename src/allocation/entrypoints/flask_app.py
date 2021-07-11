@@ -28,7 +28,7 @@ def allocate_endpoint():
     return {'batchref': batchref}, 201
 
 
-@app.route('/add_batch', methods=['POST'])
+@app.route('/add-batch', methods=['POST'])
 def add_batch():
     eta = request.json['eta']
     if eta is not None:

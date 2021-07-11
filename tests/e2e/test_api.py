@@ -9,12 +9,12 @@ from allocation import config
 def post_to_add_batch(ref, sku, qty, eta):
     url = config.get_api_url()
     r = requests.post(
-        f'{url}/add_batch', json={'reference': ref, 'sku': sku, 'quantity': qty, 'eta': eta})
+        f'{url}/add-batch', json={'reference': ref, 'sku': sku, 'quantity': qty, 'eta': eta})
     assert r.status_code == HTTPStatus.CREATED
 
 
 @pytest.mark.usefixtures('restart_api')
-def test_happy_path_returns_201_and_allocated_batch(add_stock):
+def test_happy_path_returns_201_and_allocated_batch():
     sku, othersku = random_sku(), random_sku('other')
     earlybatch = random_batchref(1)
     laterbatch = random_batchref(2)
