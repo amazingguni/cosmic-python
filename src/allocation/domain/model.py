@@ -91,10 +91,9 @@ class Product:
     def change_batch_quantity(self, reference: str, quantity: int):
         batch = next(b for b in self.batches if b.reference == reference)
         batch.purchased_quantity = quantity
-        print('batch.available_quantity', batch.available_quantity)
         while batch.available_quantity < 0:
             line = batch.deallocate_one()
             self.events.append(
-                commands.Allocate(
+                events.Deallocated(
                     line.order_id, line.sku, line.quantity)
             )

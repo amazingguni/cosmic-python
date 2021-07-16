@@ -31,19 +31,13 @@ def handle_event(
         uow: unit_of_work.AbstractUnitOfWork):
     for handler in EVENT_HANDLERS[type(event)]:
         try:
-            for attemp in Retrying(
-                stop=stop_after_attempt,
-                wait=wait_exponential()
-            ):
-                with attemp:
-                    logging.debug(
-                        f'handling event {event} with handler {handler}')
-                    handler(event, uow=uow)
-                    queue.extend(uow.collect_new_events())
-        except RetryError as retry_failure:
+            logging.debug(
+                f'handling event {event} with handler {handler}')
+            handler(event, uow=uow)
+            queue.extend(uow.collect_new_events())
+        except Exception:
             logger.error(
-                f'Failed to handle event {retry_failure.last_attempt.attempt_number} times, ' +
-                'giving up!')
+                f'Exception handling event {event}')
             continue
 
 
@@ -63,7 +57,14 @@ def handle_command(
 
 
 EVENT_HANDLERS = {
-    events.Allocated: [handlers.publish_allocated_event],
+    events.Allocated: [
+        handlers.publish_allocated_event,
+        handlers.add_allocation_to_read_model,
+    ],
+    events.Deallocated: [
+        handlers.remove_allocation_from_read_model,
+        handlers.reallocate,
+    ],
     events.OutOfStock: [handlers.send_out_of_stock_notification],
 }  # type: dict[Type[events.Event], list[Callable]]
 
