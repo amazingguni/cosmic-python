@@ -1,6 +1,5 @@
 from typing import Type, Callable, Union
 import logging
-from tenacity import Retrying, RetryError, stop_after_attempt, wait_exponential
 from allocation.domain import events, commands
 from allocation.service_layer import unit_of_work, handlers
 

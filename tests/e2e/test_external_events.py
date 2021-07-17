@@ -37,7 +37,6 @@ def test_change_batch_quantity_leading_to_reallocation():
             message = subscription.get_message(timeout=1)
             if message:
                 messages.append(message)
-                print(messages)
             data = json.loads(messages[-1]['data'])
             assert data['order_id'] == order_id
             assert data['batch_reference'] == later_batch
