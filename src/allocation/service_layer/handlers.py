@@ -1,6 +1,8 @@
 from dataclasses import asdict
+from typing import Type, Callable
 
-from allocation.adapters import email, redis_eventpublisher
+from allocation.adapters import redis_eventpublisher
+from allocation.adapters.notifications import AbstractNotifications
 from allocation.domain import model, events, commands
 from allocation.domain.model import OrderLine, Batch
 from allocation.service_layer import unit_of_work
@@ -45,9 +47,10 @@ def reallocate(event: events.Deallocated, uow: AbstractUnitOfWork) -> str:
         uow.commit
 
 
-def send_out_of_stock_notification(event: events.OutOfStock,
-                                   uow: AbstractUnitOfWork):
-    email.send(
+def send_out_of_stock_notification(
+        event: events.OutOfStock,
+        notifications: AbstractNotifications):
+    notifications.send(
         'stock@made.com',
         f'Out of stock for {event.sku}',
     )
@@ -102,3 +105,22 @@ def remove_allocation_from_read_model(
             dict(order_id=event.order_id, sku=event.sku)
         )
         uow.commit()
+
+
+EVENT_HANDLERS = {
+    events.Allocated: [
+        publish_allocated_event,
+        add_allocation_to_read_model,
+    ],
+    events.Deallocated: [
+        remove_allocation_from_read_model,
+        reallocate,
+    ],
+    events.OutOfStock: [send_out_of_stock_notification],
+}  # type: dict[Type[events.Event], list[Callable]]
+
+COMMAND_HANDLERS = {
+    commands.CreateBatch: add_batch,
+    commands.ChangeBatchQuantity: change_batch_quantity,
+    commands.Allocate: allocate,
+}  # type: dict[Type[commands.Command], Callable]

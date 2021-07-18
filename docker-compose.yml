@@ -10,10 +10,12 @@ services:
     depends_on:
       - postgres
       - redis
+      - mailhog
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=abc123
       - REDIS_HOST=redis
+      - EMAIL_HOST=mailhog
       - PYTHONDONTWRITEBYTECODE=1
     volumes:
       - ./src:/src
@@ -25,12 +27,15 @@ services:
   api:
     image: allocation-image
     depends_on:
+      - postgres
       - redis_pubsub
+      - mailhog
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=abc123
       - API_HOST=api
       - REDIS_HOST=redis
+      - EMAIL_HOST=mailhog
       - PYTHONDONTWRITEBYTECODE=1
       - FLASK_APP=allocation/entrypoints/flask_app.py
       - FLASK_DEBUG=1
@@ -58,3 +63,8 @@ services:
     image: redis:alpine
     ports:
       - "63791:6379"
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "11025:1025"
+      - "18025:8025"

@@ -1,11 +1,13 @@
-from datetime import date
-import pytest
-from unittest import mock
 
-from allocation.adapters import repository
-from allocation.domain import events, commands
+from datetime import date
+from collections import defaultdict
+import pytest
+
+from allocation import bootstrap
+from allocation.adapters import repository, notifications
+from allocation.domain import commands
 from allocation.domain.model import Product
-from allocation.service_layer import handlers, unit_of_work, messagebus
+from allocation.service_layer import handlers, unit_of_work
 
 
 class FakeRepository(repository.AbstractProductRepository):
@@ -35,75 +37,99 @@ class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
         pass
 
 
+class FakeNotifications(notifications.AbstractNotifications):
+    def __init__(self):
+        self.sent = defaultdict(list)  # type: dict[str, list[str]]
+
+    def send(self, destination, message):
+        self.sent[destination].append(message)
+
+
+def bootstrap_test_app():
+    return bootstrap.bootstrap(
+        start_orm=False,
+        uow=FakeUnitOfWork(),
+        notifications=FakeNotifications(),
+        publish=lambda *args: None,
+    )
+
+
 class TestAddBatch:
     def test_for_new_product(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(commands.CreateBatch(
-            'b1', 'CRUNCHY-ARMCHAIR', 100, None), uow)
-        assert uow.products.get('CRUNCHY-ARMCHAIR') is not None
-        assert uow.committed
+        bus = bootstrap_test_app()
+        bus.handle(commands.CreateBatch(
+            'b1', 'CRUNCHY-ARMCHAIR', 100, None))
+        assert bus.uow.products.get('CRUNCHY-ARMCHAIR') is not None
+        assert bus.uow.committed
 
     def test_for_existing_product(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(commands.CreateBatch(
-            'b1', 'GARISH-RUG', 100, None), uow)
-        messagebus.handle(commands.CreateBatch(
-            'b2', 'GARISH-RUG', 99, None), uow)
+        bus = bootstrap_test_app()
+        bus.handle(commands.CreateBatch(
+            'b1', 'GARISH-RUG', 100, None))
+        bus.handle(commands.CreateBatch(
+            'b2', 'GARISH-RUG', 99, None))
         assert 'b2' in [
-            b.reference for b in uow.products.get('GARISH-RUG').batches]
+            b.reference for b in bus.uow.products.get('GARISH-RUG').batches]
 
 
 class TestAllocate:
-    def test_allocation(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(commands.CreateBatch(
-            'batch1', 'COMPLICATED-LAMP', 100, None), uow)
-        results = messagebus.handle(
-            commands.Allocate('o1', 'COMPLICATED-LAMP', 10), uow)
-        assert results.pop(0) == 'batch1'
+    def test_allocates(self):
+        bus = bootstrap_test_app()
+        bus.handle(commands.CreateBatch(
+            'batch1', 'COMPLICATED-LAMP', 100, None))
+        bus.handle(
+            commands.Allocate('o1', 'COMPLICATED-LAMP', 10))
+        [batch] = bus.uow.products.get('COMPLICATED-LAMP').batches
+        assert batch.available_quantity == 90
 
     def test_errors_for_invalid_sku(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(commands.CreateBatch(
-            'b1', 'AREALSKU', 100, None), uow)
+        bus = bootstrap_test_app()
+        bus.handle(commands.CreateBatch(
+            'b1', 'AREALSKU', 100, None))
 
         with pytest.raises(handlers.InvalidSku, match='Invalid sku NONEXISTENTSKU'):
-            messagebus.handle(commands.Allocate(
-                'o1', 'NONEXISTENTSKU', 10), uow)
+            bus.handle(commands.Allocate(
+                'o1', 'NONEXISTENTSKU', 10))
 
     def test_commits(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(commands.CreateBatch(
-            'b1', 'OMINOUS-MIRROR', 100, None), uow)
-        messagebus.handle(commands.Allocate(
-            'o1', 'OMINOUS-MIRROR', 10), uow)
-        assert uow.committed is True
+        bus = bootstrap_test_app()
+        bus.handle(commands.CreateBatch(
+            'b1', 'OMINOUS-MIRROR', 100, None))
+        bus.handle(commands.Allocate(
+            'o1', 'OMINOUS-MIRROR', 10))
+        assert bus.uow.committed is True
 
     def test_sends_email_on_out_of_stock_error(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(commands.CreateBatch(
-            'b1', 'POPULAR-CURTAINS', 9, None), uow)
-        with mock.patch('allocation.adapters.email.send') as mock_send_mail:
-            messagebus.handle(
-                commands.Allocate('o1', 'POPULAR-CURTAINS', 10), uow)
-            assert mock_send_mail.call_args == mock.call(
-                'stock@made.com', f'Out of stock for POPULAR-CURTAINS')
+        fake_notifs = FakeNotifications()
+        bus = bootstrap.bootstrap(
+            start_orm=False,
+            uow=FakeUnitOfWork(),
+            notifications=fake_notifs,
+            publish=lambda *args: None,
+        )
+        bus.handle(commands.CreateBatch(
+            'b1', 'POPULAR-CURTAINS', 9, None))
+        bus.handle(
+            commands.Allocate('o1', 'POPULAR-CURTAINS', 10))
+        assert fake_notifs.sent['stock@made.com'] == [
+            f'Out of stock for POPULAR-CURTAINS',
+        ]
 
 
 class TestChangeBatchQuantity:
     def test_changes_available_quantity(self):
-        uow = FakeUnitOfWork()
-        messagebus.handle(
-            commands.CreateBatch('batch1', 'ADORABLE-SETTEE', 100, None), uow)
-        [batch] = uow.products.get(sku='ADORABLE-SETTEE').batches
+        bus = bootstrap_test_app()
+        bus.handle(
+            commands.CreateBatch('batch1', 'ADORABLE-SETTEE', 100, None))
+        [batch] = bus.uow.products.get(sku='ADORABLE-SETTEE').batches
         assert batch.available_quantity == 100
 
-        messagebus.handle(commands.ChangeBatchQuantity('batch1', 50), uow)
+        bus.handle(commands.ChangeBatchQuantity('batch1', 50))
 
         assert batch.available_quantity == 50
 
     def test_reallocates_if_necessary(self):
-        uow = FakeUnitOfWork()
+        bus = bootstrap_test_app()
         event_history = [
             commands.CreateBatch('batch1', 'INDIFFERENT-TABLE', 50, None),
             commands.CreateBatch(
@@ -114,12 +140,13 @@ class TestChangeBatchQuantity:
                 'order2', 'INDIFFERENT-TABLE', 20)
         ]
         for e in event_history:
-            messagebus.handle(e, uow)
-        [batch1, batch2] = uow.products.get(sku='INDIFFERENT-TABLE').batches
+            bus.handle(e)
+        [batch1, batch2] = bus.uow.products.get(
+            sku='INDIFFERENT-TABLE').batches
         assert batch1.available_quantity == 10
         assert batch2.available_quantity == 50
 
-        messagebus.handle(commands.ChangeBatchQuantity('batch1', 25), uow)
+        bus.handle(commands.ChangeBatchQuantity('batch1', 25))
 
         # order1 or order2 will be deallocated, so we'll have 25-20
         assert batch1.available_quantity == 5

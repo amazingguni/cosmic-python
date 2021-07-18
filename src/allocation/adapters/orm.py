@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy import (
     Table, MetaData, Column, Integer, String, Date, ForeignKey, event,
 )
@@ -5,6 +6,8 @@ from sqlalchemy.orm import mapper, relationship
 
 from allocation.domain import model
 
+
+logger = logging.getLogger(__name__)
 metadata = MetaData()
 
 order_lines = Table(
@@ -51,6 +54,8 @@ applications_view = Table(
 
 
 def start_mappers():
+    print("Starting mappers")
+    logger.info("Starting mappers")
     lines_mapper = mapper(model.OrderLine, order_lines)
     batches_mapper = mapper(
         model.Batch,

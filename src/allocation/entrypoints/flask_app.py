@@ -1,19 +1,15 @@
 from datetime import datetime
 from http import HTTPStatus
 from flask import Flask, request, jsonify
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from allocation import views
-from allocation import config
+from allocation import bootstrap
 from allocation.domain import commands
-from allocation.adapters import orm
-from allocation.service_layer import unit_of_work, messagebus
+from allocation.service_layer import unit_of_work
 from allocation.service_layer.handlers import InvalidSku
 
 
-orm.start_mappers()
-get_session = sessionmaker(bind=create_engine(config.get_postgres_uri()))
+bus = bootstrap.bootstrap()
 app = Flask(__name__)
 
 
@@ -22,8 +18,7 @@ def allocate_endpoint():
     try:
         command = commands.Allocate(
             request.json['order_id'], request.json['sku'], request.json['quantity'])
-        messagebus.handle(
-            command, unit_of_work.SqlAlchemyUnitOfWork())
+        bus.handle(command)
     except InvalidSku as e:
         return {'message': str(e)}, HTTPStatus.BAD_REQUEST
     return 'OK', HTTPStatus.ACCEPTED
@@ -39,7 +34,7 @@ def add_batch():
         request.json['sku'],
         request.json['quantity'],
         eta)
-    messagebus.handle(command, unit_of_work.SqlAlchemyUnitOfWork())
+    bus.handle(command)
     return 'OK', HTTPStatus.CREATED
 
 
